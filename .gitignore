@@ -18,6 +18,9 @@ cache-ref.o
 *.s
 fetch 
 ./fetch 
+*.zip
+*.tar
+*.tgz
 
 # Java development
 *.class
