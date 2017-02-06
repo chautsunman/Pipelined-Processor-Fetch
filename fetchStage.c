@@ -14,11 +14,11 @@
 
 
 int main(int argc, char **argv) {
-  
+
   int machineCodeFD = -1;       // File descriptor of file with object code
   uint64_t PC = 0;              // The program counter
   struct fetchRegisters fReg;
-  
+
   // Verify that the command line has an appropriate number
   // of arguments
 
@@ -27,7 +27,7 @@ int main(int argc, char **argv) {
     return ERROR_RETURN;
   }
 
-  // First argument is the file to open, attempt to open it 
+  // First argument is the file to open, attempt to open it
   // for reading and verify that the open did occur.
   machineCodeFD = open(argv[1], O_RDONLY);
 
@@ -37,9 +37,9 @@ int main(int argc, char **argv) {
   }
 
   // If there is a 2nd argument present, it is an offset so
-  // convert it to a value. This offset is the initial value the 
+  // convert it to a value. This offset is the initial value the
   // program counter is to have. The program will seek to that location
-  // in the object file and begin fetching instructions from there.  
+  // in the object file and begin fetching instructions from there.
   if (3 == argc) {
     // See man page for strtol() as to why
     // we check for errors by examining errno
@@ -54,23 +54,29 @@ int main(int argc, char **argv) {
   printf("Opened %s, starting offset 0x%016llX\n", argv[1], PC);
 
   // Start adding your code here and comment out the line the #define EXAMPLESON line
+  // print the file from the initial PC byte by byte
+  lseek(machineCodeFD, PC, SEEK_SET);
+  uint8_t buf[1];
+  while (read(machineCodeFD, buf, 1) > 0) {
+    printf("%d ", buf[0]);
+  }
 
 #define EXAMPLESON 1
 #ifdef  EXAMPLESON
 
 
 
-  // The next few lines are examples of various types of output. In the comments is 
+  // The next few lines are examples of various types of output. In the comments is
   // an instruction, the address it is at and the associated binary code that would
-  // be found in the object code file at that address (offset). Your program 
-  // will read that binary data and then pull it appart just like the fetch stage. 
-  // Once everything has been pulled apart then a call to printRegS is made to 
-  // have the output printed. Read the comments in printInternalReg.h for what 
+  // be found in the object code file at that address (offset). Your program
+  // will read that binary data and then pull it appart just like the fetch stage.
+  // Once everything has been pulled apart then a call to printRegS is made to
+  // have the output printed. Read the comments in printInternalReg.h for what
   // the various fields of the structure represent. Note: Do not fill in fields
-  // int the structure that aren't used by that instruction. 
-  
-  
-  /************************************************* 
+  // int the structure that aren't used by that instruction.
+
+
+  /*************************************************
      irmovq $1, %rsi   0x008: 30f60100000000000000
   ***************************************************/
 
@@ -84,12 +90,12 @@ int main(int argc, char **argv) {
   printRegS(&fReg);
 
 
-    /************************************************* 
+    /*************************************************
      je target   x034: 733f00000000000000     Note target is a label
 
      ***************************************************/
 
-  
+
   fReg.PC = 0x34; fReg.icode = 7; fReg.ifun = 3;
   fReg.regsValid = 0;
   fReg.valCValid = 1; fReg.valC = 0x3f;
@@ -98,8 +104,8 @@ int main(int argc, char **argv) {
   fReg.valP = 0x34 + 9;  fReg.instr = "je";
 
   printRegS(&fReg);
-    /************************************************* 
-     nop  x03d: 10    
+    /*************************************************
+     nop  x03d: 10
 
      ***************************************************/
 
@@ -110,8 +116,8 @@ int main(int argc, char **argv) {
 
   printRegS(&fReg);
 
-    /************************************************* 
-     addq %rsi,%rdx  0x03f: 6062 
+    /*************************************************
+     addq %rsi,%rdx  0x03f: 6062
 
      ***************************************************/
 
@@ -127,4 +133,3 @@ int main(int argc, char **argv) {
   return SUCCESS;
 
 }
-
