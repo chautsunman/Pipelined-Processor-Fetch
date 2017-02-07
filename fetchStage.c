@@ -13,6 +13,9 @@
 #define SUCCESS 0
 
 
+// the instruction length in bytes map with the array index corresponds to icode
+int instructionLength[12] = {1, 1, 2, 10, 10, 10, 2, 9, 9, 1, 2, 2};
+
 int main(int argc, char **argv) {
 
   int machineCodeFD = -1;       // File descriptor of file with object code
@@ -54,11 +57,33 @@ int main(int argc, char **argv) {
   printf("Opened %s, starting offset 0x%016llX\n", argv[1], PC);
 
   // Start adding your code here and comment out the line the #define EXAMPLESON line
-  // print the file from the initial PC byte by byte
+  // start reading from the initial PC
   lseek(machineCodeFD, PC, SEEK_SET);
-  uint8_t buf[1];
-  while (read(machineCodeFD, buf, 1) > 0) {
-    printf("%d ", buf[0]);
+
+  // reading buffers
+  uint8_t icode_ifun_buf[1];
+  uint8_t rA_rB_buf[1];
+  uint8_t valC_buf[8];
+
+  // read the whole file until EOF
+  while (read(machineCodeFD, icode_ifun_buf, sizeof(icode_ifun_buf)/sizeof(uint8_t)) > 0) {
+    unsigned int icode = icode_ifun_buf[0] / 16;
+    unsigned int ifun = icode_ifun_buf[0] % 16;
+
+    // print the instruction's icode and ifun
+    printf("%X %X\n", icode, ifun);
+
+    // read the whole instruction
+    if (instructionLength[icode] == 1) {
+      continue;
+    } else if (instructionLength[icode] == 2) {
+      read(machineCodeFD, rA_rB_buf, sizeof(rA_rB_buf)/sizeof(uint8_t));
+    } else if (instructionLength[icode] == 9) {
+      read(machineCodeFD, valC_buf, sizeof(valC_buf)/sizeof(uint8_t));
+    } else if (instructionLength[icode] == 10) {
+      read(machineCodeFD, rA_rB_buf, sizeof(rA_rB_buf)/sizeof(uint8_t));
+      read(machineCodeFD, valC_buf, sizeof(valC_buf)/sizeof(uint8_t));
+    }
   }
 
 #define EXAMPLESON 1
