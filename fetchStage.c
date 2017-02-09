@@ -73,10 +73,18 @@ int main(int argc, char **argv) {
   uint8_t rA_rB_buf[1];
   uint8_t valC_buf[8];
 
+  int bytesRead;
+
   struct fetchRegisters registers;
 
-  // read the whole file until EOF
-  while (read(machineCodeFD, icode_ifun_buf, sizeof(icode_ifun_buf)/sizeof(uint8_t)) > 0) {
+  // read the file
+  while ((bytesRead = read(machineCodeFD, icode_ifun_buf, sizeof(icode_ifun_buf)/sizeof(uint8_t))) >= 0) {
+    // exit if EOF
+    if (bytesRead == 0) {
+      printf("Normal termination\n");
+      return SUCCESS;
+    }
+
     unsigned int icode = icode_ifun_buf[0] / 16;
     unsigned int ifun = icode_ifun_buf[0] % 16;
 
