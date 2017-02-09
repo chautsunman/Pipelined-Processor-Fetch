@@ -16,7 +16,12 @@
 
 // the instruction length in bytes map with the array index corresponds to icode
 int instructionLengths[12] = {1, 1, 2, 10, 10, 10, 2, 9, 9, 1, 2, 2};
+
+// instruction names
 char* instructionNames[12] = {"halt", "nop", "rrmovq", "irmovq", "rmmovq", "mrmovq", "OPq", "jmp", "call", "ret", "pushq", "popq"};
+char* instruction_op_names[7] = {"addq", "subq", "andq", "xorq", "mulq", "divq", "modq"};
+char* instruction_jmp_names[7] = {"jmp", "jle", "jl", "je", "jne", "jge", "jg"};
+char* instruction_rrmov_names[7] = {"rrmovq", "cmovle", "cmovl", "cmove", "cmovne", "cmovge", "cmovg"};
 
 // parse the input and set rA and rB
 void parse_rA_rB(struct fetchRegisters *registers, const uint8_t *rA_rB_buf);
@@ -113,7 +118,15 @@ int main(int argc, char **argv) {
     registers.regsValid = 0;
     registers.valCValid = 0;
     registers.valP = PC + instructionLength;
-    registers.instr = instructionNames[icode];
+    if (icode == 6) {
+      registers.instr = instruction_op_names[ifun];
+    } else if (icode == 7) {
+      registers.instr = instruction_jmp_names[ifun];
+    } else if (icode == 2) {
+      registers.instr = instruction_rrmov_names[ifun];
+    } else {
+      registers.instr = instructionNames[icode];
+    }
 
     // read the whole instruction
     if (instructionLength == 2) {
