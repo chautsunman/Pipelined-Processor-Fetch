@@ -7,6 +7,7 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <errno.h>
+// #include <math.h>
 #include "printInternalReg.h"
 
 #define ERROR_RETURN -1
@@ -16,6 +17,12 @@
 // the instruction length in bytes map with the array index corresponds to icode
 int instructionLengths[12] = {1, 1, 2, 10, 10, 10, 2, 9, 9, 1, 2, 2};
 char* instructionNames[12] = {"halt", "nop", "rrmovq", "irmovq", "rmmovq", "mrmovq", "OPq", "jmp", "call", "ret", "pushq", "popq"};
+
+// parse the input and set rA and rB
+void parse_rA_rB(struct fetchRegisters *registers, const uint8_t *rA_rB_buf);
+
+// parse the input and set valC
+void parse_valC(struct fetchRegisters *registers, const uint8_t *valC_buf);
 
 int main(int argc, char **argv) {
 
@@ -75,17 +82,7 @@ int main(int argc, char **argv) {
 
     int instructionLength = (icode <= 12) ? instructionLengths[icode] : 1;
 
-    // read the whole instruction
-    if (instructionLength == 2) {
-      read(machineCodeFD, rA_rB_buf, sizeof(rA_rB_buf)/sizeof(uint8_t));
-    } else if (instructionLength == 9) {
-      read(machineCodeFD, valC_buf, sizeof(valC_buf)/sizeof(uint8_t));
-    } else if (instructionLength == 10) {
-      read(machineCodeFD, rA_rB_buf, sizeof(rA_rB_buf)/sizeof(uint8_t));
-      read(machineCodeFD, valC_buf, sizeof(valC_buf)/sizeof(uint8_t));
-    }
-
-    // print the instruction's icode and ifun
+    // set the basic registers
     registers.PC = PC;
     registers.icode = icode;
     registers.ifun = ifun;
@@ -93,6 +90,22 @@ int main(int argc, char **argv) {
     registers.valCValid = 0;
     registers.valP = PC + instructionLength;
     registers.instr = instructionNames[icode];
+
+    // read the whole instruction
+    if (instructionLength == 2) {
+      read(machineCodeFD, rA_rB_buf, sizeof(rA_rB_buf)/sizeof(uint8_t));
+      parse_rA_rB(&registers, rA_rB_buf);
+    } else if (instructionLength == 9) {
+      read(machineCodeFD, valC_buf, sizeof(valC_buf)/sizeof(uint8_t));
+      parse_valC(&registers, valC_buf);
+    } else if (instructionLength == 10) {
+      read(machineCodeFD, rA_rB_buf, sizeof(rA_rB_buf)/sizeof(uint8_t));
+      parse_rA_rB(&registers, rA_rB_buf);
+      read(machineCodeFD, valC_buf, sizeof(valC_buf)/sizeof(uint8_t));
+      parse_valC(&registers, valC_buf);
+    }
+
+    // print registers
     printRegS(&registers);
 
     // advance PC
@@ -170,4 +183,35 @@ int main(int argc, char **argv) {
 
   return SUCCESS;
 
+}
+
+// parse the input and set rA and rB
+void parse_rA_rB(struct fetchRegisters *registers, const uint8_t *rA_rB_buf) {
+  registers->regsValid = 1;
+
+  registers->rA = rA_rB_buf[0] / 16;
+  registers->rB = rA_rB_buf[0] % 16;
+}
+
+// parse the input and set valC
+void parse_valC(struct fetchRegisters *registers, const uint8_t *valC_buf) {
+  registers->valCValid = 1;
+
+  registers->byte0 = valC_buf[0];
+  registers->byte1 = valC_buf[1];
+  registers->byte2 = valC_buf[2];
+  registers->byte3 = valC_buf[3];
+  registers->byte4 = valC_buf[4];
+  registers->byte5 = valC_buf[5];
+  registers->byte6 = valC_buf[6];
+  registers->byte7 = valC_buf[7];
+
+  registers->valC = 0;
+  for (int i = 0; i < 8; i++) {
+    uint64_t power = 1;
+    for (int j = 0; j < i; j++) {
+      power *= 256;
+    }
+    registers->valC += valC_buf[i] * power;
+  }
 }
