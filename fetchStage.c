@@ -24,6 +24,12 @@ void parse_rA_rB(struct fetchRegisters *registers, const uint8_t *rA_rB_buf);
 // parse the input and set valC
 void parse_valC(struct fetchRegisters *registers, const uint8_t *valC_buf);
 
+// check if icode is valid
+int valid_icode(unsigned int icode);
+
+// check if ifun is valid
+int valid_ifun(unsigned int icode, unsigned int ifun);
+
 int main(int argc, char **argv) {
 
   int machineCodeFD = -1;       // File descriptor of file with object code
@@ -87,6 +93,16 @@ int main(int argc, char **argv) {
 
     unsigned int icode = icode_ifun_buf[0] / 16;
     unsigned int ifun = icode_ifun_buf[0] % 16;
+
+    if (!valid_icode(icode)) {
+      printf("Invalid opcode %X at %08llX\n", icode_ifun_buf[0], PC);
+      return ERROR_RETURN;
+    }
+
+    if (!valid_ifun(icode, ifun)) {
+      printf("Invalid function code %X at %08llX.\n", icode_ifun_buf[0], PC);
+      return ERROR_RETURN;
+    }
 
     int instructionLength = (icode <= 12) ? instructionLengths[icode] : 1;
 
@@ -222,4 +238,24 @@ void parse_valC(struct fetchRegisters *registers, const uint8_t *valC_buf) {
     }
     registers->valC += valC_buf[i] * power;
   }
+}
+
+// check if icode is valid
+int valid_icode(unsigned int icode) {
+  if (icode >= 0 && icode <= 11) {
+    return 1;
+  }
+
+  return 0;
+}
+
+// check if ifun is valid
+int valid_ifun(unsigned int icode, unsigned int ifun) {
+  if (((icode >= 0 && icode <= 5) || (icode >= 8 && icode <= 11)) && ifun == 0) {
+    return 1;
+  } else if (ifun >= 0 && ifun <= 6) {
+    return 1;
+  }
+
+  return 0;
 }
