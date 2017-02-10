@@ -87,6 +87,8 @@ int main(int argc, char **argv) {
   int bytesRead;
   int sufficientBytes;
 
+  int numberOfHalt = 0;
+
   struct fetchRegisters registers;
 
   // read the file
@@ -148,8 +150,17 @@ int main(int argc, char **argv) {
       }
     }
 
-    // print registers
-    printRegS(&registers);
+    // count the number of halt instructions
+    if (icode == 0) {
+      numberOfHalt++;
+    } else {
+      numberOfHalt = 0;
+    }
+
+    if (numberOfHalt <= 2) {
+      // print registers
+      printRegS(&registers);
+    }
 
     // exit if there are insufficient bytes
     if (!sufficientBytes) {
