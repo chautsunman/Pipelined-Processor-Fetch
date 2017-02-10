@@ -102,13 +102,13 @@ int main(int argc, char **argv) {
 
     // exit if the opcode is invalid
     if (!valid_icode(icode)) {
-      printf("Invalid opcode %X at %08llX\n", icode_ifun_buf[0], PC);
+      printf("Invalid opcode %X at %08llX\n", icode, PC);
       return ERROR_RETURN;
     }
 
     // exit if the function code is invalid
     if (!valid_ifun(icode, ifun)) {
-      printf("Invalid function code %X at %08llX.\n", icode_ifun_buf[0], PC);
+      printf("Invalid function code %X at %08llX.\n", ifun, PC);
       return ERROR_RETURN;
     }
 
@@ -301,11 +301,9 @@ int valid_icode(unsigned int icode) {
 
 // check if ifun is valid
 int valid_ifun(unsigned int icode, unsigned int ifun) {
-  if (((icode >= 0 && icode <= 5) || (icode >= 8 && icode <= 11)) && ifun == 0) {
-    return 1;
-  } else if (ifun >= 0 && ifun <= 6) {
-    return 1;
+  if ((icode >= 0 && icode <= 1) || (icode >= 3 && icode <= 5) || (icode >= 8 && icode <= 11)) {
+    return (ifun == 0);
+  } else {
+    return (ifun >= 0 && ifun <= 6);
   }
-
-  return 0;
 }
