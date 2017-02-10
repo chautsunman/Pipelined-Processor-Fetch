@@ -24,10 +24,10 @@ char* instruction_jmp_names[7] = {"jmp", "jle", "jl", "je", "jne", "jge", "jg"};
 char* instruction_rrmov_names[7] = {"rrmovq", "cmovle", "cmovl", "cmove", "cmovne", "cmovge", "cmovg"};
 
 // parse the input and set rA and rB
-void parse_rA_rB(struct fetchRegisters *registers, const uint8_t *rA_rB_buf);
+int parse_rA_rB(struct fetchRegisters *registers, const uint8_t *rA_rB_buf, int bytesRead);
 
 // parse the input and set valC
-void parse_valC(struct fetchRegisters *registers, const uint8_t *valC_buf);
+int parse_valC(struct fetchRegisters *registers, uint8_t *valC_buf, int bytesRead);
 
 // check if icode is valid
 int valid_icode(unsigned int icode);
@@ -85,6 +85,7 @@ int main(int argc, char **argv) {
   uint8_t valC_buf[8];
 
   int bytesRead;
+  int sufficientBytes;
 
   struct fetchRegisters registers;
 
@@ -99,11 +100,13 @@ int main(int argc, char **argv) {
     unsigned int icode = icode_ifun_buf[0] / 16;
     unsigned int ifun = icode_ifun_buf[0] % 16;
 
+    // exit if the opcode is invalid
     if (!valid_icode(icode)) {
       printf("Invalid opcode %X at %08llX\n", icode_ifun_buf[0], PC);
       return ERROR_RETURN;
     }
 
+    // exit if the function code is invalid
     if (!valid_ifun(icode, ifun)) {
       printf("Invalid function code %X at %08llX.\n", icode_ifun_buf[0], PC);
       return ERROR_RETURN;
@@ -130,20 +133,29 @@ int main(int argc, char **argv) {
 
     // read the whole instruction
     if (instructionLength == 2) {
-      read(machineCodeFD, rA_rB_buf, sizeof(rA_rB_buf)/sizeof(uint8_t));
-      parse_rA_rB(&registers, rA_rB_buf);
+      bytesRead = read(machineCodeFD, rA_rB_buf, sizeof(rA_rB_buf)/sizeof(uint8_t));
+      sufficientBytes = parse_rA_rB(&registers, rA_rB_buf, bytesRead);
     } else if (instructionLength == 9) {
-      read(machineCodeFD, valC_buf, sizeof(valC_buf)/sizeof(uint8_t));
-      parse_valC(&registers, valC_buf);
+      bytesRead = read(machineCodeFD, valC_buf, sizeof(valC_buf)/sizeof(uint8_t));
+      sufficientBytes = parse_valC(&registers, valC_buf, bytesRead);
     } else if (instructionLength == 10) {
-      read(machineCodeFD, rA_rB_buf, sizeof(rA_rB_buf)/sizeof(uint8_t));
-      parse_rA_rB(&registers, rA_rB_buf);
-      read(machineCodeFD, valC_buf, sizeof(valC_buf)/sizeof(uint8_t));
-      parse_valC(&registers, valC_buf);
+      bytesRead = read(machineCodeFD, rA_rB_buf, sizeof(rA_rB_buf)/sizeof(uint8_t));
+      sufficientBytes = parse_rA_rB(&registers, rA_rB_buf, bytesRead);
+
+      if (sufficientBytes) {
+        bytesRead = read(machineCodeFD, valC_buf, sizeof(valC_buf)/sizeof(uint8_t));
+        sufficientBytes = parse_valC(&registers, valC_buf, bytesRead);
+      }
     }
 
     // print registers
     printRegS(&registers);
+
+    // exit if there are insufficient bytes
+    if (!sufficientBytes) {
+      printf("Memory access error at %08llX, required %d bytes, read %d bytes.\n", PC, instructionLength, bytesRead+1);
+      return ERROR_RETURN;
+    }
 
     // advance PC
     PC = registers.valP;
@@ -223,16 +235,39 @@ int main(int argc, char **argv) {
 }
 
 // parse the input and set rA and rB
-void parse_rA_rB(struct fetchRegisters *registers, const uint8_t *rA_rB_buf) {
+int parse_rA_rB(struct fetchRegisters *registers, const uint8_t *rA_rB_buf, int bytesRead) {
+  // return if there are insufficient bytes
+  if (bytesRead < 1) {
+    registers->regsValid = 0;
+
+    return 0;
+  }
+
   registers->regsValid = 1;
 
   registers->rA = rA_rB_buf[0] / 16;
   registers->rB = rA_rB_buf[0] % 16;
+
+  return 1;
 }
 
 // parse the input and set valC
-void parse_valC(struct fetchRegisters *registers, const uint8_t *valC_buf) {
+int parse_valC(struct fetchRegisters *registers, uint8_t *valC_buf, int bytesRead) {
+  // return if no bytes are read
+  if (bytesRead <= 0) {
+    registers->valCValid = 0;
+
+    return 0;
+  }
+
   registers->valCValid = 1;
+
+  // set the unread bytes as 0 if there are insufficient bytes
+  if (bytesRead < 8) {
+    for (int i = bytesRead; i < 8; i++) {
+      valC_buf[i] = 0;
+    }
+  }
 
   registers->byte0 = valC_buf[0];
   registers->byte1 = valC_buf[1];
@@ -251,6 +286,8 @@ void parse_valC(struct fetchRegisters *registers, const uint8_t *valC_buf) {
     }
     registers->valC += valC_buf[i] * power;
   }
+
+  return (bytesRead == 8);
 }
 
 // check if icode is valid
